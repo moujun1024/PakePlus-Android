@@ -259,9 +259,7 @@ class MainActivity : AppCompatActivity() {
         webView.settings.setSupportZoom(setZoom)
 
         // clear cache
-        if (clearCache) {
-            webView.clearCache(true)
-        }
+        webView.clearCache(false)
 
         // 为 blob: 链接下载注入 JS 接口
         webView.addJavascriptInterface(JsInterface(this), "JsBridge")
