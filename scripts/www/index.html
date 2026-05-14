@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+    <title>一言 · 轻语</title>
+    <style>
+        /* ---------- 极简重置 + 移动端完美适配，无卡片、无阴影、顶部固定、内容居中 ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* 禁用浏览器默认长按菜单，但自定义实现长按复制 */
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior-x: none;
+            background-color: #f5f5f5;
+        }
+
+        /* 跟随系统主题 (纯平面，无渐变无阴影) */
+        :root {
+            --bg-page: #f5f5f5;
+            --bg-surface: #ffffff;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --accent: #1a73e8;
+            --border-light: #e0e0e0;
+            --error-color: #d93025;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-page: #121212;
+                --bg-surface: #1e1e1e;
+                --text-primary: #e8eaed;
+                --text-secondary: #9aa0a6;
+                --accent: #8ab4f8;
+                --border-light: #2d2d2d;
+                --error-color: #f28b82;
+            }
+        }
+
+        body {
+            background-color: var(--bg-page);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* 顶部固定栏 — 适配 iOS / Android 安全区 */
+        .top-bar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-surface);
+            border-bottom: 0.5px solid var(--border-light);
+            padding: 12px 20px;
+            padding-top: env(safe-area-inset-top, 12px);
+            text-align: center;
+            z-index: 100;
+            box-shadow: none;
+        }
+
+        .top-bar-fixed h1 {
+            font-size: 1.7rem;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            background: none;
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        /* 主体容器: 文本垂直居中，按钮独立偏下 */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-top: calc(env(safe-area-inset-top, 0px) + 56px);
+            margin-bottom: env(safe-area-inset-bottom, 20px);
+            padding: 20px 24px 60px;
+        }
+
+        /* 文本区域 — 长按触发复制 */
+        .text-display-area {
+            width: 100%;
+            text-align: center;
+            margin: 0 auto;
+            cursor: default;
+        }
+
+        .sentence-text {
+            font-size: 1.65rem;
+            line-height: 1.45;
+            font-weight: 480;
+            color: var(--text-primary);
+            word-break: break-word;
+            background: transparent;
+            padding: 20px 8px;
+            letter-spacing: -0.2px;
+        }
+
+        /* 网络错误特殊状态（可选，保持和普通文本一致） */
+        .sentence-text.error-state {
+            color: var(--error-color);
+            font-weight: 450;
+        }
+
+        /* 按钮区域 — 距离文本较远，距离底部舒适 */
+        .button-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 64px;
+            margin-bottom: 12vh;
+        }
+
+        .generate-btn {
+            background-color: var(--accent);
+            border: none;
+            width: 80%;
+            max-width: 280px;
+            padding: 14px 0;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 520;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            touch-action: manipulation;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .generate-btn {
+                color: #121212;
+            }
+        }
+
+        .generate-btn:active {
+            opacity: 0.7;
+        }
+
+        /* 禁用/冷却状态 */
+        .generate-btn.disabled-btn {
+            background-color: var(--text-secondary);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        /* 轻提示 Toast */
+        .light-toast {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.78);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 450;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+            font-family: inherit;
+            box-shadow: none;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .light-toast {
+                background-color: #e2e2e2;
+                color: #1a1a1a;
+            }
+        }
+
+        .light-toast.show {
+            opacity: 1;
+        }
+
+        /* 加载指示器 */
+        .loader-mini {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            border-top-color: currentColor;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        :focus { outline: none; }
+
+        /* 长按反馈 */
+        .longpress-active {
+            opacity: 0.6;
+            transition: opacity 0.05s;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部固定栏：一言 -->
+<header class="top-bar-fixed">
+    <h1>一言</h1>
+</header>
+
+<!-- 主区域 -->
+<main class="main-container">
+    <div class="text-display-area" id="textContainer">
+        <div class="sentence-text" id="sentenceDisplay">轻触下方按钮 · 生成</div>
+    </div>
+
+    <div class="button-wrapper">
+        <button class="generate-btn" id="generateBtn">生成</button>
+    </div>
+</main>
+
+<!-- 轻提示浮层 -->
+<div id="copyToast" class="light-toast">已复制</div>
+
+<script>
+    (function() {
+        // ---------- DOM 元素 ----------
+        const generateBtn = document.getElementById('generateBtn');
+        const sentenceDisplay = document.getElementById('sentenceDisplay');
+        const textContainer = document.getElementById('textContainer');
+        const toastEl = document.getElementById('copyToast');
+
+        // ---------- API 地址 ----------
+        const API_URL = 'https://apix.iqfk.top/api/saohua';
+
+        // ---------- 防抖 + 冷却保护后端 ----------
+        let isRequesting = false;
+        let cooldownTimer = null;
+        const COOLDOWN_MS = 1250;
+
+        let currentValidText = '';          // 存储当前有效句子（用于长按复制）
+        let isOfflineMode = false;           // 记录网络离线状态（用于展示不同提示）
+
+        // ---------- 轻提示函数 ----------
+        function showLightTip(message, duration = 1500) {
+            if (!toastEl) return;
+            toastEl.textContent = message || '已复制';
+            toastEl.classList.add('show');
+            setTimeout(() => {
+                toastEl.classList.remove('show');
+                if (toastEl.textContent !== '已复制') {
+                    setTimeout(() => { toastEl.textContent = '已复制'; }, 50);
+                }
+            }, duration);
+        }
+
+        // ---------- 网络状态检测 (无网络/离线处理) ----------
+        function isNetworkAvailable() {
+            return navigator.onLine !== undefined ? navigator.onLine : true;
+        }
+
+        // 监听网络变化，更新离线状态但不覆盖已有内容 (礼貌提醒)
+        window.addEventListener('online', () => {
+            // 恢复网络，可轻提示但不自动请求
+            if (sentenceDisplay.textContent.includes('无网络') || sentenceDisplay.textContent.includes('网络连接失败')) {
+                // 如果当前显示的是网络错误提示，且之前有有效文本则恢复; 否则恢复默认占位
+                if (currentValidText && currentValidText !== '轻触下方按钮 · 生成' && currentValidText !== '') {
+                    sentenceDisplay.textContent = currentValidText;
+                    sentenceDisplay.classList.remove('error-state');
+                } else {
+                    sentenceDisplay.textContent = '轻触下方按钮 · 生成';
+                    sentenceDisplay.classList.remove('error-state');
+                    currentValidText = '';
+                }
+            }
+            showLightTip('网络已恢复', 1200);
+        });
+        window.addEventListener('offline', () => {
+            // 进入离线，显示友好无网络提示，但不丢失原有展示文本? 为了体验显示无网络提示，不清空原文本但显示状态
+            const originalTextForOffline = currentValidText && currentValidText !== '轻触下方按钮 · 生成' ? currentValidText : null;
+            sentenceDisplay.textContent = '📡 无网络连接\n请检查网络';
+            sentenceDisplay.classList.add('error-state');
+            // 若之前有有效文本，暂存到 currentValidText，但不显示（离线提示覆盖）；在恢复网络时复原
+            if (originalTextForOffline) {
+                // currentValidText 已经保存有效句子，暂不覆盖，仅展示离线提示
+            } else {
+                currentValidText = ''; // 无有效内容
+            }
+            showLightTip('网络未连接', 1500);
+        });
+
+        // ---------- 核心错误处理 (HTTP 4xx,5xx, 超时, 解析失败等) ----------
+        async function requestSaoHuaWithRetryLogic() {
+            if (isRequesting) {
+                showLightTip('请求中', 800);
+                return;
+            }
+
+            // 首先检测是否离线
+            if (!isNetworkAvailable()) {
+                // 明确显示无网络，不允许请求
+                sentenceDisplay.textContent = '📡 无网络连接\n请检查网络';
+                sentenceDisplay.classList.add('error-state');
+                showLightTip('无网络连接', 1500);
+                return;
+            }
+
+            setButtonLoading(true);
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                // 处理 HTTP 错误状态（404, 500, 403 等）
+                if (!response.ok) {
+                    let errorDetail = `HTTP ${response.status}`;
+                    if (response.status === 404) errorDetail = '接口不存在 (404)';
+                    else if (response.status === 403) errorDetail = '访问被拒绝 (403)';
+                    else if (response.status === 500) errorDetail = '服务器错误 (500)';
+                    else if (response.status === 429) errorDetail = '请求过多，请稍后';
+                    throw new Error(errorDetail);
+                }
+
+                // 解析 JSON
+                let json;
+                try {
+                    json = await response.json();
+                } catch (parseErr) {
+                    throw new Error('数据解析失败，响应格式无效');
+                }
+
+                // 验证业务层 success 和 data 字段
+                if (json && json.success === true && json.data && typeof json.data === 'string') {
+                    const newText = json.data;
+                    currentValidText = newText;
+                    sentenceDisplay.textContent = newText;
+                    sentenceDisplay.classList.remove('error-state');
+                    showLightTip('已生成', 1000);
+                } else {
+                    // 接口返回 success 不为 true 或者缺少 data
+                    throw new Error(json?.message || '接口返回数据异常');
+                }
+            } catch (err) {
+                console.warn('请求失败:', err);
+                let friendlyMsg = '';
+                const errMsg = err.message || '未知错误';
+
+                // 根据错误类型分类友好文案
+                if (err.name === 'AbortError') {
+                    friendlyMsg = '请求超时，请重试';
+                } else if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+                    friendlyMsg = '网络请求失败，请检查网络';
+                    // 再次检测离线标志，若离线则展示离线
+                    if (!isNetworkAvailable()) friendlyMsg = '无网络连接，请联网后重试';
+                } else if (errMsg.includes('404')) {
+                    friendlyMsg = '接口不存在 (404)';
+                } else if (errMsg.includes('403')) {
+                    friendlyMsg = '无访问权限';
+                } else if (errMsg.includes('500')) {
+                    friendlyMsg = '服务器繁忙，请稍后重试';
+                } else if (errMsg.includes('解析失败')) {
+                    friendlyMsg = '数据格式错误';
+                } else if (errMsg.includes('接口返回数据异常')) {
+                    friendlyMsg = '服务响应异常';
+                } else {
+                    friendlyMsg = errMsg.length > 30 ? errMsg.slice(0,30) : errMsg;
+                }
+
+                // 显示错误内容到文本区，同时保留备份的有效文本（如果之前存在）
+                const backupText = (currentValidText && currentValidText !== '轻触下方按钮 · 生成') ? currentValidText : null;
+
+                // 展示错误信息在文本中央（用户可感知）
+                sentenceDisplay.textContent = `⚠️ ${friendlyMsg}`;
+                sentenceDisplay.classList.add('error-state');
+                showLightTip(friendlyMsg, 2000);
+
+                // 如果之前有有效文本，2.5秒后恢复展示有效文本（但不丢失生成的期望，避免一直显示错误）
+                if (backupText) {
+                    setTimeout(() => {
+                        // 仅当当前显示的仍然是错误内容时才恢复
+                        if (sentenceDisplay.textContent.includes(friendlyMsg) || sentenceDisplay.textContent.includes('⚠️')) {
+                            sentenceDisplay.textContent = backupText;
+                            sentenceDisplay.classList.remove('error-state');
+                        }
+                    }, 2800);
+                } else {
+                    // 没有任何缓存文本，3秒后恢复默认占位提示
+                    setTimeout(() => {
+                        if (sentenceDisplay.textContent.includes(friendlyMsg) || sentenceDisplay.textContent.includes('⚠️') || sentenceDisplay.textContent.includes('无网络')) {
+                            sentenceDisplay.textContent = '轻触下方按钮 · 生成';
+                            sentenceDisplay.classList.remove('error-state');
+                            currentValidText = '';
+                        }
+                    }, 3000);
+                }
+            } finally {
+                setButtonLoading(false);
+                startCooldown();
+            }
+        }
+
+        // 按钮加载状态管理
+        function setButtonLoading(loading) {
+            if (loading) {
+                generateBtn.classList.add('disabled-btn');
+                if (!generateBtn.hasAttribute('data-original-text')) {
+                    generateBtn.setAttribute('data-original-text', generateBtn.innerHTML);
+                }
+                generateBtn.innerHTML = '<span class="loader-mini"></span> 生成中';
+                generateBtn.disabled = true;
+                isRequesting = true;
+            } else {
+                generateBtn.classList.remove('disabled-btn');
+                const originalHtml = generateBtn.getAttribute('data-original-text');
+                if (originalHtml) {
+                    generateBtn.innerHTML = originalHtml;
+                } else {
+                    generateBtn.innerHTML = '生成';
+                }
+                generateBtn.disabled = false;
+                isRequesting = false;
+            }
+        }
+
+        // 冷却 (保护后端)
+        function startCooldown() {
+            if (cooldownTimer) clearTimeout(cooldownTimer);
+            if (!isRequesting) {
+                generateBtn.classList.add('disabled-btn');
+                generateBtn.disabled = true;
+            }
+            cooldownTimer = setTimeout(() => {
+                if (!isRequesting) {
+                    generateBtn.classList.remove('disabled-btn');
+                    generateBtn.disabled = false;
+                }
+                cooldownTimer = null;
+            }, COOLDOWN_MS);
+        }
+
+        // 按钮点击入口
+        function onButtonClick() {
+            if (isRequesting) {
+                showLightTip('生成中', 800);
+                return;
+            }
+            if (generateBtn.disabled || generateBtn.classList.contains('disabled-btn')) {
+                showLightTip('稍后再点', 800);
+                return;
+            }
+            // 检查网络离线状态
+            if (!isNetworkAvailable()) {
+                sentenceDisplay.textContent = '📡 无网络连接\n请检查网络';
+                sentenceDisplay.classList.add('error-state');
+                showLightTip('无网络连接', 1500);
+                return;
+            }
+            requestSaoHuaWithRetryLogic();
+        }
+
+        if (generateBtn) {
+            generateBtn.addEventListener('click', onButtonClick);
+            generateBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        // ---------- 长按复制功能（完全自定义）----------
+        let longPressTimer = null;
+        function handleLongPressStart(e) {
+            let copyContent = currentValidText.trim();
+            if (!copyContent || copyContent === '轻触下方按钮 · 生成' || copyContent.includes('轻触下方') || copyContent.includes('无网络') || copyContent.includes('⚠️')) {
+                return;
+            }
+            if (longPressTimer) clearTimeout(longPressTimer);
+            textContainer.classList.add('longpress-active');
+            longPressTimer = setTimeout(() => {
+                executeCopy(copyContent);
+                if (navigator.vibrate) navigator.vibrate(20);
+                textContainer.classList.remove('longpress-active');
+                longPressTimer = null;
+            }, 500);
+        }
+        function handleLongPressEnd() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            textContainer.classList.remove('longpress-active');
+        }
+        function executeCopy(text) {
+            if (!text || text.trim() === '') return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    let preview = text.length > 24 ? text.slice(0, 24) + '…' : text;
+                    showLightTip(`已复制: ${preview}`, 1500);
+                }).catch(() => fallbackCopyText(text));
+            } else {
+                fallbackCopyText(text);
+            }
+        }
+        function fallbackCopyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showLightTip('复制成功', 1200);
+        }
+        if (textContainer) {
+            textContainer.addEventListener('touchstart', handleLongPressStart, { passive: false });
+            textContainer.addEventListener('touchend', handleLongPressEnd);
+            textContainer.addEventListener('touchcancel', handleLongPressEnd);
+            textContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        // ---------- 全局禁用默认长按/选中/右键，禁止左右滑动和缩放 ----------
+        document.body.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.body.addEventListener('selectstart', (e) => e.preventDefault());
+        document.body.addEventListener('dragstart', (e) => e.preventDefault());
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.target && (e.target.tagName === 'IMG' || e.target.tagName === 'A')) e.preventDefault();
+        }, { passive: false });
+
+        let startTouchX = 0;
+        document.body.addEventListener('touchstart', (e) => { startTouchX = e.touches[0].clientX; }, { passive: false });
+        document.body.addEventListener('touchmove', (e) => {
+            const deltaX = Math.abs(e.touches[0].clientX - startTouchX);
+            if (deltaX > 10 && window.scrollX === 0) e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        let lastTouchEndTime = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEndTime <= 350) e.preventDefault();
+            lastTouchEndTime = now;
+        }, false);
+
+        // 初始化状态
+        sentenceDisplay.textContent = '轻触下方按钮 · 生成';
+        sentenceDisplay.classList.remove('error-state');
+        currentValidText = '';
+
+        // 安全区顶部适配
+        const topBar = document.querySelector('.top-bar-fixed');
+        if (topBar) topBar.style.paddingTop = `max(12px, env(safe-area-inset-top, 12px))`;
+
+        // 处理初始离线情况（页面加载时即无网络）
+        if (!isNetworkAvailable()) {
+            sentenceDisplay.textContent = '📡 无网络连接\n请检查网络';
+            sentenceDisplay.classList.add('error-state');
+            currentValidText = '';
+        }
+
+        console.log('完整网络错误处理 | 404/超时/解析/离线 | 长按复制 | 无冷却文字');
+    })();
+</script>
+</body>
+</html>
